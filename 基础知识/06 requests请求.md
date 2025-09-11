@@ -32,3 +32,43 @@
     ```
 
 &nbsp;
+
+7. 对于获取的数据出现乱码的情况大致可以分为：  
+    - 如果获取的所有的数据都是乱码，这个要考虑传输过来的数据使用的压缩方法，本地是否能够解压。尤其是使用`content-type:br`时，可以考虑安装库` Brotli`。
+    - 如果只是中文或者某些内容出现乱码，这个时候要考虑的是编码的问题。最常见的编码：`gbk`、`utf-8`。
+
+&nbsp;
+
+8. 对于编码出现乱码的情况，我们首先要明白，requests返回的内容：`res.content`实际上是字节，然后我们使用的`res.text`是requests定义的一种方法而不是属性，每次调用都会执行一个对content字节的编码操作。所以我们可以通过事先更换编码方式消除`res.text`字符的乱码情况：  
+    ```
+    response = session.get(url,headers=my_headers,cookies=my_cookies)
+    response.encoding='utf-8' #指定编码形式
+    ```  
+更推荐使用自动识别的方式对`encoding`进行赋值：  
+    `res.encoding = res.apparent_encoding`  
+
+&nbsp;
+
+9. 清楚抓取数据的特殊符号
+
+&nbsp;
+
+10. 在获取href值对应的网址时然后可能会涉及到拼接的操作，这个时候就要格外注意，例如`baseurl.com/1/2.html`：  
+    - 对于`/a/b/c.html`而言，开头的`/`表示的是根路径，这个拼接就应该是`baseurl.com/a/b/c.html`  
+    - 对于`a/b/c.html`而言，则是一种相对路径的逻辑，表示当前文件夹或者当前文件夹子文件夹中文件，这个拼接出来的应该是``baseurl.com/1//a/b/c.html`
+
+    更推荐使用urllib库进行自动拼接，方便快捷，避免遇到繁琐的url进行复杂的字符串处理：  
+    ```
+    from urllib.parse import urljoin
+
+    main_url = "https://baseurl.com/1/2.html"
+
+    url1 = "/a/b/c.html"
+    url2 = "a/b/c.html"
+
+    url1 = urljoin(main_url, url1)
+    url2 = urljoin(main_url, url2)
+
+    # https://baseurl.com/a/b/c.html
+    # https://baseurl.com/1/a/b/c.html
+    ```
