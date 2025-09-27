@@ -71,6 +71,8 @@
     - dont_fulter = True/False # 指定请求队列是否去重后放入请求队列。是否有反复爬取同一页面  
     - callback = parse() # 指定该请求回送的响应应该用那个解析方法/函数进行解析。  
     - meta = {}  # 用于程序编写，该值可以被其他的方法函数直接读取到，并且可以修改  
+    - method = method_name   # 指定请求的方法
+    - body = data  #用于传递POST请求的表单数据
     。。。。。。。。
 
  要时刻明确，在Scrapy中，与请求有关的一定是通过request对象进行操作的。同样，只要想发起请求，只需要返回一个request对象就可以，引擎获取到类型是request对象就会读取url等信息，然后发起请求。  
@@ -78,3 +80,78 @@
  &ensp;
 
  9. 在Scrapy中，每次请求前都会调用调度器，不设置dont_fulter的话也就意味着默认是去重的。这也就意味着如果我们进行换页操作，只需要在处理完当前页面后，获取下方的页面对应的href，然后循环就可以。在请求队列中会自动去重，然后请求所有页面。
+
+ &ensp;
+
+ 10. 在scrapy中，设置cookie直接在setting修改是不可行的。scrapy的cookie设置是通过中间件进行配置，相当于是使用session进行管理和维护。可以在setting中设置`COOKIES_ENABLE = False`来取消下载器cookie中间件的使用，但也就意味着cookie只能在setting中静态固定的指定。  
+  使用cookie中间件去实现自动的维护的Cookie，首先要构造一个字典`cookie_dict`，然后直接：
+    ```
+        yield scrapy.Request(
+            url = ,
+            cookies = cookie_dict
+        )
+    ```
+
+&ensp;
+
+11. 在使用POST发送请求时，有的时候，`form_data`实际上是通过urlcode编码之后的结果。这个时候直接使用scrapy，`body = form_dict`这是不合适的，所以：
+    ```
+        from urllib.parse import urlencode
+        
+        form_dict = {.....}
+        scrapy.Request(
+            url = ,
+            method = 'post',
+            body = 
+        )        
+    ```
+
+ ***一定要注意，对于POST请求中，请求头会有content-type这个字段，这个字段对get是没有用的，所以常常可能会被忽略***  
+  上述的发送请求，既要考虑到urlencode，还有注意头信息的变化，所以推荐直接使用**`FormRequest`**： 
+    ```
+        yeild scrapy.FormRequest(
+            url= ,
+            body = form_dict,
+            callback = 
+        )
+    ```
+
+&ensp;
+
+12. 在循环链接爬取时，获取详情页链接等逻辑时，推荐使用连接提取器`LxmlLinkExtractor`。支持对链接进行过滤，筛选出该页面中符合过滤条件的url等:
+    - 默认的 LinkExtractor 内部用的是 <a> 和 <area> 的 href
+    - 如果你想从其他地方提取,可以用 tags 和 attrs 参数:`LinkExtractor(tags=('script',), attrs=('src',))`  
+
+要求输入的参数是一个response响应对象，LxmlLinkExtractor会返回一个符合匹配规则的Link对象，方便后面进行取用。结果会自动进行url拼接。  
+
+在crawlspider中，使用rule+LinkExtractor可以实现翻页的逻辑： 
+    ```
+    import scrapy
+    from scrapy.linkextractors import LinkExtractor
+    from scrapy.spiders import CrawlSpider, Rule
+
+
+    class MySpider(CrawlSpider):
+        name = "example"
+        allowed_domains = ["example.com"]
+        start_urls = ["https://example.com/page/1"]
+
+        rules = (
+            # 1. 提取详情页链接，并交给 parse_item 处理
+            Rule(LinkExtractor(allow=r'/item/\d+'), callback='parse_item', follow=False),
+
+            # 2. 提取分页链接，继续跟进（注意 follow=True）
+            Rule(LinkExtractor(allow=r'/page/\d+'), follow=True),
+        )
+
+        def parse_item(self, response):
+            yield {
+                "title": response.css("h1::text").get(),
+                "url": response.url
+            }
+
+    ```
+ 通过：`follow=True`，Scrapy 会把这些链接继续交给调度器，下载下一页并继续应用所有 rules
+
+13. `scrapy crawl -t templete_name` 可以指定船舰不同的模板进行处理。  
+`scrapy gensipder -t crawl spider_name domain_name` 可以创建一个解析不同链接的模板，在rules中指定url筛选匹配的逻辑，指定对应的回调函数进行解析就可以。简化了需要额外进行url链接解析匹配的逻辑。
