@@ -72,7 +72,9 @@
     - callback = parse() # 指定该请求回送的响应应该用那个解析方法/函数进行解析。  
     - meta = {}  # 用于程序编写，该值可以被其他的方法函数直接读取到，并且可以修改  
     - method = method_name   # 指定请求的方法
-    - body = data  #用于传递POST请求的表单数据
+    - body = json.dump(data)  #用于传递POST请求的表单数据 
+    - **一定要注意，传入body参数，还要指定头要又对应的content-type，不然编码成json的数据将无法解析：`headers={"Content-Type": "application/json"}`**
+
     。。。。。。。。
 
  要时刻明确，在Scrapy中，与请求有关的一定是通过request对象进行操作的。同样，只要想发起请求，只需要返回一个request对象就可以，引擎获取到类型是request对象就会读取url等信息，然后发起请求。  

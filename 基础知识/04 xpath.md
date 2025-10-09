@@ -77,3 +77,6 @@
         key = div_dict.get(title)
         item[key] = value
     ```
+
+10. 想“从子节点找到特定父节点”，
+可以用 ancestor::* 或 ancestor::tagname。
