@@ -1,10 +1,10 @@
-var f1= function () {
-    var n = 1;
-    function f2() {
-        console.log(n);
-    }
-    return f2;
-}
+var counter = {
+  count: 0,
+  inc: function () {
+    this.count++;
+  }
+};
 
-var result = f1();
-result(); // 1
+var func = counter.inc.bind(counter);
+func();
+counter.count // 1
